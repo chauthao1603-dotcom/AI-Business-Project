@@ -1,0 +1,7 @@
+# Chỉ liệt kê thư viện bên thứ ba (không ghi math, random, ... vì có sẵn trong Python).
+# Streamlit Community Cloud đọc file này khi build.
+streamlit>=1.35
+pandas
+numpy
+matplotlib
+pytest        # chỉ cần khi chạy test ở máy local (có thể chuyển sang requirements-dev.txt)

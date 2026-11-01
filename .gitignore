@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+# Bí mật & dữ liệu nhạy cảm — KHÔNG đưa lên GitHub
+.env
+.streamlit/secrets.toml
+*.key
+data/raw/*
+!data/raw/.gitkeep
+# Hệ điều hành / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
