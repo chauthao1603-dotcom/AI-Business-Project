@@ -1,0 +1,6 @@
+# PV3 – thư viện tính chỉ số đánh giá (eval/). Có thể chạy trên Colab hoặc máy có đủ RAM.
+-r requirements.txt
+scikit-image     # SSIM
+lpips            # LPIPS (kéo theo torch, torchvision)
+torchmetrics     # FID, KID
+torch-fidelity   # torchmetrics cần gói này để tính FID/KID (hoặc dùng clean-fid thay thế)

@@ -1,0 +1,5 @@
+# PV1 – môi trường chạy CatVTON trên Google Colab (GPU T4). KHÔNG cài file này trên laptop không GPU.
+# Cách dùng trên Colab:  !pip install -r requirements-model.txt  (sau khi đã clone repo CatVTON)
+-r requirements.txt
+# PV1 điền sau mục 1.1: dán vào đây các gói đã chạy được thật trên Colab
+# (lấy từ CatVTON/requirements.txt và `pip freeze`, ghi kèm phiên bản).
