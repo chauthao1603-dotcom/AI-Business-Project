@@ -1,0 +1,105 @@
+VITON-HD DATASET REPORT
+=======================================================
+
+EXPECTED SIZE: 768 x 1024
+
+
+[image]
+File count: 2032
+Image sizes:
+  768 x 1024: 2032
+Image modes: {'RGB': 2032}
+Corrupted files: 0
+
+[cloth]
+File count: 2032
+Image sizes:
+  768 x 1024: 2032
+Image modes: {'RGB': 2032}
+Corrupted files: 0
+
+[agnostic-mask]
+File count: 2032
+Image sizes:
+  768 x 1024: 2032
+Image modes: {'RGB': 2032}
+Corrupted files: 0
+
+[FILE COUNT COMPARISON]
+Counts match: YES
+
+[MASK INSPECTION]
+
+Mask: 00006_00_mask.png
+Original mode: RGB
+Converted mode: L
+Size: (768, 1024)
+Pixel values: [0, 255]
+White pixels: 30.12%
+Black pixels: 69.88%
+Binary mask: YES
+Mask direction: CHECK VISUALLY
+
+Mask: 00008_00_mask.png
+Original mode: RGB
+Converted mode: L
+Size: (768, 1024)
+Pixel values: [0, 255]
+White pixels: 42.15%
+Black pixels: 57.85%
+Binary mask: YES
+Mask direction: CHECK VISUALLY
+
+Mask: 00013_00_mask.png
+Original mode: RGB
+Converted mode: L
+Size: (768, 1024)
+Pixel values: [0, 255]
+White pixels: 25.02%
+Black pixels: 74.98%
+Binary mask: YES
+Mask direction: CHECK VISUALLY
+
+Mask: 00017_00_mask.png
+Original mode: RGB
+Converted mode: L
+Size: (768, 1024)
+Pixel values: [0, 255]
+White pixels: 33.39%
+Black pixels: 66.61%
+Binary mask: YES
+Mask direction: CHECK VISUALLY
+
+Mask: 00034_00_mask.png
+Original mode: RGB
+Converted mode: L
+Size: (768, 1024)
+Pixel values: [0, 255]
+White pixels: 33.45%
+Black pixels: 66.55%
+Binary mask: YES
+Mask direction: CHECK VISUALLY
+
+Mask preview: D:\Gidhub\AI-Business-Project\data\raw\mask_preview.jpg
+
+Mask convention required by project:
+WHITE (255) = REPLACEMENT REGION
+BLACK (0) = PRESERVED REGION
+Actual direction: WHITE = REPLACEMENT REGION
+Visual verification: 5/5 sampled masks
+Mask inversion required: NO for inspected samples
+Original mask mode: RGB
+Required model mask mode: L
+Note: Direction verified visually on 5 samples, not all 2032 masks.
+
+[TEST PAIRS]
+Valid format lines: 2032
+Invalid format lines: 0
+Pairs with missing files: 0
+Format: person_filename cloth_filename
+First 5 pairs:
+  05006_00.jpg 11001_00.jpg
+  02532_00.jpg 14096_00.jpg
+  03921_00.jpg 08015_00.jpg
+  12419_00.jpg 01944_00.jpg
+  12562_00.jpg 14025_00.jpg
