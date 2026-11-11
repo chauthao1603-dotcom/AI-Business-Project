@@ -70,6 +70,18 @@ DEMO_REVIEW = PROCESSED_CSV_DIR / "demo_review.csv"
 RESULTS = REPO_ROOT / "results"
 DOCS = REPO_ROOT / "docs"
 
+# ---- CatVTON (PV1). Nguồn tham chiếu: CatVTON/app.py và CatVTON/model/pipeline.py ----
+CATVTON_DIR = REPO_ROOT / "CatVTON"            # git clone Zheng-Chong/CatVTON vào đây (đã có trong .gitignore)
+CATVTON_BASE = "booksforcharlie/stable-diffusion-inpainting"   # mặc định của app.py (bản sao vì runwayml đã xóa repo gốc)
+CATVTON_CKPT_REPO = "zhengchong/CatVTON"
+CATVTON_CKPT_VERSION = "mix"                   # thư mục mix-48k-1024
+# Chỉ tải phần cần dùng thay vì cả repo checkpoint (repo còn chứa nhánh FLUX, mask-free...).
+CATVTON_PATTERNS = ["DensePose/*", "SCHP/*", "mix-48k-1024/*"]
+# T4 (Colab/Kaggle) không hỗ trợ bf16 tốt -> mặc định fp16. GPU Ampere trở lên (A100, L4, RTX 30/40): đặt TRYON_PRECISION=bf16.
+PRECISION = os.getenv("TRYON_PRECISION", "fp16")      # "no" | "fp16" | "bf16"
+# Dán lại điểm ảnh gốc ra ngoài mask (như `inference.py --repaint` của CatVTON, cũng là cách bài báo đánh giá).
+# Nhờ đó vùng ngoài mask của ảnh CatVTON giống hệt ảnh gốc, giống baseline -> so sánh công bằng.
+REPAINT = True
 
 def get_run_tryon():
     """Trả về hàm run_tryon thật hoặc giả tùy USE_MOCK. app.py chỉ import hàm này qua config."""

@@ -1,5 +1,30 @@
-# PV1 – môi trường chạy CatVTON trên Google Colab (GPU T4). KHÔNG cài file này trên laptop không GPU.
-# Cách dùng trên Colab:  !pip install -r requirements-model.txt  (sau khi đã clone repo CatVTON)
+# PV1 – môi trường chạy CatVTON (GPU). PHẢI dùng Python 3.9: repo CatVTON kèm sẵn file biên dịch
+# detectron2/_C.cpython-39-*.so (README của họ cũng ghim python==3.9.0). KHÔNG dùng Python 3.10+ / 3.13.
+# Cách tạo môi trường (Colab/Kaggle/laptop có GPU): xem notebooks/01_setup.ipynb và docs/pv1_troubleshooting.md.
+#
+# Khác file requirements.txt gốc của CatVTON (đã kiểm chứng việc giải quyết phụ thuộc bằng `uv pip compile` ở Python 3.9):
+#  - diffusers==0.31.0 thay cho `git+https://github.com/huggingface/diffusers.git` (nhánh main nay đòi Python>=3.11
+#    và không khớp transformers 4.46.3 -> lỗi `resolve_revision`). Code SD1.5 của CatVTON chỉ dùng API cơ bản của diffusers.
+#  - huggingface_hub==0.25.2 (khớp transformers 4.46.3 và diffusers 0.31.0).
+#  - bỏ gradio (chỉ app.py của họ cần), peft (chỉ nhánh FLUX cần), setuptools==51.0.0.
+#  - thư viện của nhóm (streamlit, pandas, pytest...) lấy từ requirements.txt để chạy app trong CÙNG môi trường.
 -r requirements.txt
-# PV1 điền sau mục 1.1: dán vào đây các gói đã chạy được thật trên Colab
-# (lấy từ CatVTON/requirements.txt và `pip freeze`, ghi kèm phiên bản).
+torch==2.4.0
+torchvision==0.19.0
+accelerate==0.31.0
+diffusers==0.31.0
+transformers==4.46.3
+huggingface_hub==0.25.2
+numpy==1.26.4
+pillow==10.3.0
+matplotlib==3.9.1
+opencv-python==4.10.0.84
+PyYAML==6.0.1
+scipy==1.13.1
+scikit-image==0.24.0
+tqdm==4.66.4
+fvcore==0.1.5.post20221221
+cloudpickle==3.0.0
+omegaconf==2.3.0
+pycocotools==2.0.8
+av==12.3.0
