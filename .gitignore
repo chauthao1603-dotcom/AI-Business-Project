@@ -41,3 +41,9 @@ CatVTON/
 Thumbs.db
 .vscode/
 .idea/
+
+# ---- Khảo sát: đáp án và phản hồi KHÔNG đưa lên GitHub (để trên Drive) ----
+results/survey_key.csv
+results/ab_key.csv
+results/survey_responses*.csv
+outputs/*.csv
