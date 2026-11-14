@@ -518,19 +518,34 @@ with tab_result:
                 st.metric("⏱️ Thời gian xử lý", f"{st.session_state['elapsed']:.2f} giây")
 
         st.write("")
-        c1, c2, c3 = st.columns(3, gap="medium")
-        with c1:
-            with st.container(border=True):
-                st.markdown("##### 🧍 Ảnh gốc")
-                st.image(st.session_state["person_img"], use_container_width=True)
-        with c2:
-            with st.container(border=True):
-                st.markdown("##### 📐 Phương pháp Baseline")
-                st.image(st.session_state["baseline"], use_container_width=True)
-        with c3:
-            with st.container(border=True):
-                st.markdown("##### ✨ Kết quả AI (CatVTON)")
-                st.image(st.session_state["result"], use_container_width=True)
+        # Toggle bật/tắt chế độ đối chứng (Mặc định tắt để hiển thị 2 cột Before/After chuẩn thương mại)
+        show_baseline = st.toggle("🔬 Chế độ so sánh kỹ thuật (Hiện ảnh Baseline đối chứng)", value=False)
+
+        if show_baseline:
+            c1, c2, c3 = st.columns(3, gap="medium")
+            with c1:
+                with st.container(border=True):
+                    st.markdown("##### 🧍 Ảnh gốc")
+                    st.image(st.session_state["person_img"], use_container_width=True)
+            with c2:
+                with st.container(border=True):
+                    st.markdown("##### 📐 Phương pháp Baseline")
+                    st.image(st.session_state["baseline"], use_container_width=True)
+            with c3:
+                with st.container(border=True):
+                    st.markdown("##### ✨ Kết quả AI (CatVTON)")
+                    st.image(st.session_state["result"], use_container_width=True)
+        else:
+            # Giao diện Before/After to rõ, đẹp mắt cho khách hàng
+            c1, c2 = st.columns(2, gap="large")
+            with c1:
+                with st.container(border=True):
+                    st.markdown("##### 🧍 Ảnh người mẫu ban đầu")
+                    st.image(st.session_state["person_img"], use_container_width=True)
+            with c2:
+                with st.container(border=True):
+                    st.markdown("##### ✨ Kết quả mặc thử AI (CatVTON)")
+                    st.image(st.session_state["result"], use_container_width=True)
 
         bot_col1, bot_col2 = st.columns(2, gap="medium")
         with bot_col1:
