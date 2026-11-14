@@ -1,4 +1,4 @@
-"""PV3 – 3.3: dựng bộ ảnh khảo sát "thật hay AI" và bộ so sánh A/B.
+"""PV3 – 3.3: dựng bộ ảnh khảo sát "thật hay AI" và bộ so sánh A/B "ảnh nào là ảnh chụp thật".
 
 Chạy từ thư mục gốc repo (sau khi PV1 và PV2 đã giao ảnh):
 
@@ -11,7 +11,16 @@ Phần 1 (q01–q20): 10 ảnh thật + 10 ảnh CatVTON, 20 người khác nhau
   - Mọi ảnh đi qua cùng một quy trình (về 768×1024, nén JPEG rồi lưu PNG, bỏ metadata) để không đoán được
     qua định dạng. Ảnh thật của VITON-HD vốn là JPEG còn ảnh CatVTON là PNG, nên bước nén JPEG chung
     là để xóa dấu hiệu đó.
-Phần 2 (ab01–ab10): 10 cặp baseline và CatVTON cùng id, vị trí A/B ngẫu nhiên.
+Phần 2 (ab01–ab10): 10 cặp "ảnh chụp thật – ảnh CatVTON" của cùng một người mặc cùng một chiếc áo
+  (cặp paired: ảnh gốc VITON-HD và ảnh CatVTON sinh lại áo đó). CatVTON chạy với REPAINT nên ngoài vùng mask
+  hai ảnh gần như trùng nhau; người xem chỉ có phần trong mask (áo, có khi cả tay) để phân biệt.
+  Câu hỏi: "Ảnh nào là ảnh chụp thật?". Các cặp được chọn ngẫu nhiên, không loại cặp nào vì xấu hay đẹp.
+  Tỷ lệ chọn đúng ảnh thật gần 50% nghĩa là người xem không phân biệt được.
+  - Người và áo ở phần 2 không xuất hiện ở phần 1.
+  - Đúng 5 câu ảnh thật nằm bên trái, 5 câu nằm bên phải (vị trí xáo ngẫu nhiên), để thói quen chọn
+    một bên không làm lệch kết quả.
+  - Phần 2 dùng bộ sinh số ngẫu nhiên riêng, nên chọn lại phần 2 không làm đổi phần 1.
+  (Thiết kế cũ so baseline với CatVTON bị bỏ vì baseline dán áo quá dễ nhận ra, kết quả đoán trước được.)
   Google Forms chỉ gắn được một ảnh vào mỗi câu hỏi, nên mỗi cặp còn được ghép thành một ảnh
   outputs/survey/ab_sheets/abXX.png: ảnh A bên trái, ảnh B bên phải, nhãn "A" và "B" ở phía trên.
 
@@ -19,10 +28,15 @@ Phần 2 (ab01–ab10): 10 cặp baseline và CatVTON cùng id, vị trí A/B ng
     outputs/survey/q01.png … q20.png, ab01_A.png, ab01_B.png …   [Drive, không commit]
     outputs/survey/ab_sheets/ab01.png … ab10.png                  [Drive, không commit]
     results/survey_key.csv   qid,label,source_id        label ∈ {real, ai}
-    results/ab_key.csv       ab_id,id,left_method,right_method   (A = trái = left_method, B = phải)
+    results/ab_key.csv       ab_id,id,left_method,right_method   left/right ∈ {real, catvton}
+                             (A = trái = left_method, B = phải = right_method)
 
 Chạy lại sẽ thay bộ ảnh; nếu Google Form đã dựng từ bộ cũ thì đáp án sẽ sai, nên lệnh từ chối ghi đè
 khi results/survey_key.csv đã có, trừ khi thêm --force.
+
+Chỉ làm lại phần 2 theo thiết kế mới, giữ nguyên 20 ảnh và đáp án phần 1 (survey_key.csv không đổi):
+
+    python -m eval.make_survey_set --redo-ab
 
 Bộ khảo sát đã dựng từ trước (chưa có ab_sheets/) thì chỉ cần ghép ảnh, không chọn lại ảnh và không đổi đáp án:
 
@@ -121,7 +135,7 @@ def make_ab_sheets(out) -> list:
 def choose(args) -> dict:
     pairs = read_pairs(Path(args.pairs))
     unpaired = pairs[pairs["mode"] == "unpaired"].sort_values("id")
-    cat_dir, base_dir, gt_dir = Path(args.catvton), Path(args.baseline), Path(args.gt)
+    cat_dir, gt_dir = Path(args.catvton), Path(args.gt)
     rng = random.Random(config.SEED)
 
     # ---- ảnh AI: mỗi người một ảnh
@@ -148,20 +162,62 @@ def choose(args) -> dict:
             [("ai", pid, find_image(cat_dir, pid)) for pid, _ in ai]
     rng.shuffle(items)
 
-    # ---- A/B: cặp có cả hai ảnh, tránh trùng id với phần 1
-    quiz_ids = {pid for pid, _ in ai}
-    both = [r.id for r in unpaired.itertuples(index=False)
-            if r.id not in quiz_ids and find_image(cat_dir, r.id) and find_image(base_dir, r.id)]
-    if len(both) < N_AB:
-        raise SystemExit(f"Cần {N_AB} cặp unpaired có cả ảnh baseline và CatVTON "
-                         f"(trong {base_dir} và {cat_dir}), hiện chỉ có {len(both)}.")
-    ab_ids = rng.sample(both, N_AB)
+    return {"items": items, "pairs": pairs, "cat_dir": cat_dir, "gt_dir": gt_dir}
+
+
+def part1_people(key: pd.DataFrame) -> set:
+    """Mọi người và áo đã xuất hiện ở phần 1 (ảnh thật: người; ảnh AI: người__áo)."""
+    seen = set()
+    for r in key.itertuples(index=False):
+        seen.update(str(r.source_id).split("__"))
+    return seen
+
+
+def choose_ab(pairs: pd.DataFrame, gt_dir: Path, cat_dir: Path, exclude: set) -> list:
+    """10 cặp paired (ảnh thật, ảnh CatVTON) không đụng người/áo của phần 1; đúng 5 câu ảnh thật bên trái."""
+    rng = random.Random(f"{config.SEED}-ab")   # bộ ngẫu nhiên riêng: không ảnh hưởng phần 1
+    paired = pairs[pairs["mode"] == "paired"].sort_values("id")
+    pool = [r.id for r in paired.itertuples(index=False)
+            if r.person not in exclude and r.cloth not in exclude
+            and find_image(cat_dir, r.id) and find_image(gt_dir, r.person)]
+    if len(pool) < N_AB:
+        raise SystemExit(f"Cần {N_AB} cặp paired có cả ảnh thật (trong {gt_dir}) và ảnh CatVTON (trong {cat_dir}), "
+                         f"không trùng người/áo với phần 1; hiện chỉ có {len(pool)}.")
+    ids = rng.sample(pool, N_AB)
+    real_left = set(rng.sample(range(N_AB), N_AB // 2))
+    person = dict(zip(paired["id"], paired["person"]))
     ab = []
-    for k, pid in enumerate(ab_ids, 1):
-        cat_left = rng.random() < 0.5
-        left, right = ("catvton", "baseline") if cat_left else ("baseline", "catvton")
-        ab.append({"ab_id": f"ab{k:02d}", "id": pid, "left_method": left, "right_method": right})
-    return {"items": items, "ab": ab, "cat_dir": cat_dir, "base_dir": base_dir}
+    for k, pid in enumerate(ids):
+        left, right = ("real", "catvton") if k in real_left else ("catvton", "real")
+        ab.append({"ab_id": f"ab{k + 1:02d}", "id": pid, "person": person[pid],
+                   "left_method": left, "right_method": right})
+    return ab
+
+
+def write_ab(ab: list, gt_dir: Path, cat_dir: Path, out: Path, ab_path: Path, jpeg_quality: int) -> list:
+    """Ghi abXX_A.png / abXX_B.png (cùng quy trình chuẩn hóa như phần 1), ab_key.csv và ảnh ghép A|B."""
+    for old in list(out.glob("ab[0-9][0-9]_[AB].png")) + list((out / AB_SHEET_DIR).glob("ab*.png")):
+        old.unlink()                                   # xóa bộ A/B cũ để không lẫn ảnh
+    for row in ab:
+        for side, src in (("A", row["left_method"]), ("B", row["right_method"])):
+            path = find_image(gt_dir, row["person"]) if src == "real" else find_image(cat_dir, row["id"])
+            save_clean(normalize(Image.open(path), jpeg_quality), out / f"{row['ab_id']}_{side}.png")
+    pd.DataFrame(ab).drop(columns="person").to_csv(ab_path, index=False)
+    return make_ab_sheets(out)
+
+
+def redo_ab(args) -> dict:
+    """Chọn lại và ghi lại phần 2; phần 1 (q01–q20, survey_key.csv) giữ nguyên."""
+    results, out = Path(args.results), Path(args.out)
+    key_path = results / "survey_key.csv"
+    if not key_path.exists():
+        raise SystemExit(f"Chưa có {key_path}. Chạy python -m eval.make_survey_set để dựng cả bộ trước.")
+    key = pd.read_csv(key_path, dtype=str, encoding="utf-8-sig")
+    gt_dir, cat_dir = Path(args.gt), Path(args.catvton)
+    ab = choose_ab(read_pairs(Path(args.pairs)), gt_dir, cat_dir, part1_people(key))
+    out.mkdir(parents=True, exist_ok=True)
+    sheets = write_ab(ab, gt_dir, cat_dir, out, results / "ab_key.csv", args.jpeg_quality)
+    return {"ab": pd.DataFrame(ab).drop(columns="person"), "sheets": sheets}
 
 
 def build(args) -> dict:
@@ -181,16 +237,12 @@ def build(args) -> dict:
         save_clean(normalize(Image.open(path), args.jpeg_quality), dest)
         key_rows.append({"qid": qid, "label": label, "source_id": source_id})
         sizes[label].append(dest.stat().st_size)
-    pd.DataFrame(key_rows).to_csv(key_path, index=False)
+    key = pd.DataFrame(key_rows)
+    key.to_csv(key_path, index=False)
 
-    for row in sel["ab"]:
-        for side, method in (("A", row["left_method"]), ("B", row["right_method"])):
-            src_dir = sel["cat_dir"] if method == "catvton" else sel["base_dir"]
-            save_clean(normalize(Image.open(find_image(src_dir, row["id"])), args.jpeg_quality),
-                       out / f"{row['ab_id']}_{side}.png")
-    pd.DataFrame(sel["ab"]).to_csv(ab_path, index=False)
-    sheets = make_ab_sheets(out)
-    return {"key": pd.DataFrame(key_rows), "ab": pd.DataFrame(sel["ab"]), "sizes": sizes, "sheets": sheets}
+    ab = choose_ab(sel["pairs"], sel["gt_dir"], sel["cat_dir"], part1_people(key))
+    sheets = write_ab(ab, sel["gt_dir"], sel["cat_dir"], out, ab_path, args.jpeg_quality)
+    return {"key": key, "ab": pd.DataFrame(ab).drop(columns="person"), "sizes": sizes, "sheets": sheets}
 
 
 def check_uniform(out: Path) -> dict:
@@ -203,15 +255,16 @@ def check_uniform(out: Path) -> dict:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(description="Dựng bộ ảnh khảo sát và bộ so sánh A/B.")
+    ap = argparse.ArgumentParser(description="Dựng bộ ảnh khảo sát và bộ so sánh A/B (ảnh thật – ảnh CatVTON).")
     ap.add_argument("--pairs", default=str(config.EVAL_PAIRS))
     ap.add_argument("--gt", default=str(config.TEST_IMAGE))
     ap.add_argument("--catvton", default=str(config.OUT_CATVTON))
-    ap.add_argument("--baseline", default=str(config.OUT_BASELINE))
     ap.add_argument("--out", default=str(config.OUT_SURVEY))
     ap.add_argument("--results", default=str(config.RESULTS))
     ap.add_argument("--jpeg-quality", type=int, default=90, help="0 = không nén JPEG chung")
     ap.add_argument("--force", action="store_true", help="cho phép ghi đè bộ khảo sát đã có")
+    ap.add_argument("--redo-ab", action="store_true",
+                    help="chỉ chọn lại và ghi lại phần 2 (ảnh thật – CatVTON); phần 1 và survey_key.csv giữ nguyên")
     ap.add_argument("--ab-sheets", action="store_true",
                     help="chỉ ghép ảnh A|B cho bộ đã có (không chọn lại ảnh, không đổi đáp án)")
     return ap
@@ -223,6 +276,13 @@ def main(argv=None) -> int:
         sheets = make_ab_sheets(args.out)
         print(f"Đã ghép {len(sheets)} ảnh A|B vào {Path(args.out) / AB_SHEET_DIR} "
               f"(A = trái, B = phải; đáp án giữ nguyên trong results/ab_key.csv)")
+        return 0
+    if args.redo_ab:
+        res = redo_ab(args)
+        ab = res["ab"]
+        print(f"Đã làm lại phần 2: {len(ab)} cặp ảnh thật – CatVTON trong {args.out}, ảnh ghép trong "
+              f"{Path(args.out) / AB_SHEET_DIR}; ảnh thật bên trái ở {(ab.left_method == 'real').sum()}/{len(ab)} câu.")
+        print("Phần 1 (q01–q20, survey_key.csv) giữ nguyên. Nhớ dựng lại 10 câu A/B trong Google Form.")
         return 0
     res = build(args)
     chk = check_uniform(Path(args.out))

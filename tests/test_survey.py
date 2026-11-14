@@ -9,7 +9,7 @@ from PIL import Image
 from eval import analyze_survey as an
 from eval import make_survey_set as ms
 
-N = 30  # số người giả
+N = 60  # số người giả: phần 1 dùng tối đa 30 người/áo, phần 2 cần thêm 10 cặp paired khác
 
 
 def _img(seed, w=96, h=128):
@@ -17,9 +17,9 @@ def _img(seed, w=96, h=128):
     return Image.fromarray(rng.integers(0, 255, (h, w, 3), dtype=np.uint8))
 
 
-def _dataset(tmp_path, n=N, with_baseline=True):
-    gt, cat, base = tmp_path / "gt", tmp_path / "cat", tmp_path / "base"
-    for d in (gt, cat, base):
+def _dataset(tmp_path, n=N, with_paired=True):
+    gt, cat = tmp_path / "gt", tmp_path / "cat"
+    for d in (gt, cat):
         d.mkdir()
     rows = []
     for i in range(n):
@@ -28,11 +28,13 @@ def _dataset(tmp_path, n=N, with_baseline=True):
         rows.append({"id": pid, "person": person, "cloth": cloth, "mode": "unpaired"})
         _img(i).save(gt / f"{person}.jpg", quality=95)
         _img(1000 + i).save(cat / f"{pid}.png")
-        if with_baseline:
-            _img(2000 + i).save(base / f"{pid}.png")
+        if with_paired:
+            same = f"{person}__{person}"
+            rows.append({"id": same, "person": person, "cloth": person, "mode": "paired"})
+            _img(3000 + i).save(cat / f"{same}.png")
     pairs = tmp_path / "eval_pairs.csv"
     pd.DataFrame(rows).to_csv(pairs, index=False)
-    return Namespace(pairs=str(pairs), gt=str(gt), catvton=str(cat), baseline=str(base),
+    return Namespace(pairs=str(pairs), gt=str(gt), catvton=str(cat),
                      out=str(tmp_path / "survey"), results=str(tmp_path / "res"),
                      jpeg_quality=90, force=False)
 
@@ -47,14 +49,18 @@ def test_survey_set_structure(tmp_path):
     assert (key.label == "real").sum() == 10 and (key.label == "ai").sum() == 10
     assert list(ab.columns) == ["ab_id", "id", "left_method", "right_method"]
     assert len(ab) == 10
-    assert set(zip(ab.left_method, ab.right_method)) <= {("catvton", "baseline"), ("baseline", "catvton")}
+    assert set(zip(ab.left_method, ab.right_method)) <= {("catvton", "real"), ("real", "catvton")}
+    assert (ab.left_method == "real").sum() == 5          # đúng 5/10 câu ảnh thật bên trái
     assert ms.check_uniform(args.out)["uniform"]
     # 20 người khác nhau: ảnh thật và ảnh AI không chung người
     ai_people = [s.split("__")[0] for s in key[key.label == "ai"].source_id]
     real_people = list(key[key.label == "real"].source_id)
     assert len(set(ai_people)) == 10 and not set(ai_people) & set(real_people)
-    # phần A/B không dùng lại ảnh của phần 1
-    assert not set(ab.id) & set(key[key.label == "ai"].source_id)
+    # phần A/B: cặp paired (cùng người, cùng áo), không đụng người hay áo nào của phần 1
+    part1 = {x for s in key.source_id for x in s.split("__")}
+    for pid in ab.id:
+        person, cloth = pid.split("__")
+        assert person == cloth and person not in part1
     for k in range(1, 11):
         assert (tmp_path / "survey" / f"ab{k:02d}_A.png").exists()
         assert (tmp_path / "survey" / f"ab{k:02d}_B.png").exists()
@@ -132,26 +138,66 @@ def test_survey_needs_enough_images(tmp_path):
         ms.build(a)
 
 
-def test_survey_needs_baseline_images(tmp_path):
-    a = _dataset(tmp_path, with_baseline=False)
+def test_survey_needs_paired_catvton_images(tmp_path):
+    a = _dataset(tmp_path, with_paired=False)
     with pytest.raises(SystemExit):
         ms.build(a)
 
 
+def test_ab_images_are_the_real_photo_and_the_catvton_output(tmp_path):
+    a = _dataset(tmp_path)
+    ab = ms.build(a)["ab"]
+    out = tmp_path / "survey"
+    r = ab.iloc[0]
+    person = r.id.split("__")[0]
+    expect = {"real": tmp_path / "gt" / f"{person}.jpg", "catvton": tmp_path / "cat" / f"{r.id}.png"}
+    for side, src in (("A", r.left_method), ("B", r.right_method)):
+        want = np.asarray(ms.normalize(Image.open(expect[src]), a.jpeg_quality))
+        with Image.open(out / f"{r.ab_id}_{side}.png") as got:
+            assert np.array_equal(np.asarray(got), want)
+
+
+def test_redo_ab_keeps_part1_and_is_deterministic(tmp_path):
+    a = _dataset(tmp_path)
+    ms.build(a)
+    res_dir, out = tmp_path / "res", tmp_path / "survey"
+    key_before = (res_dir / "survey_key.csv").read_bytes()
+    q_before = {p.name: p.read_bytes() for p in out.glob("q*.png")}
+    ab_before = (res_dir / "ab_key.csv").read_bytes()
+    # giả lập bộ A/B cũ (baseline) còn sót: phải bị xóa và thay hết
+    (res_dir / "ab_key.csv").write_text("ab_id,id,left_method,right_method\nab01,x,baseline,catvton\n")
+    _img(9).save(out / "ab11_A.png")
+    assert ms.main(["--redo-ab", "--pairs", a.pairs, "--gt", a.gt, "--catvton", a.catvton,
+                    "--out", a.out, "--results", a.results]) == 0
+    assert (res_dir / "survey_key.csv").read_bytes() == key_before
+    assert {p.name: p.read_bytes() for p in out.glob("q*.png")} == q_before
+    assert (res_dir / "ab_key.csv").read_bytes() == ab_before      # cùng seed => cùng bộ A/B
+    assert not (out / "ab11_A.png").exists()
+    assert len(list((out / ms.AB_SHEET_DIR).glob("ab*.png"))) == 10
+
+
+def test_redo_ab_needs_existing_part1(tmp_path):
+    a = _dataset(tmp_path)
+    with pytest.raises(SystemExit):
+        ms.redo_ab(a)
+
+
 # ---------------------------------------------------------------- 3.4
-def _keys():
+def _keys(design="real"):
+    """design='real': A/B là ảnh thật – CatVTON (thiết kế hiện tại); 'baseline': thiết kế cũ."""
+    other = design
     labels = ["real", "ai"] * 10  # q01 real, q02 ai, ...
     key = pd.DataFrame({"qid": [f"q{i:02d}" for i in range(1, 21)], "label": labels,
                         "source_id": [f"s{i}" for i in range(20)]})
     ab = pd.DataFrame({"ab_id": [f"ab{i:02d}" for i in range(1, 11)], "id": [f"x{i}" for i in range(10)],
-                       "left_method": ["catvton", "baseline"] * 5, "right_method": ["baseline", "catvton"] * 5})
+                       "left_method": ["catvton", other] * 5, "right_method": [other, "catvton"] * 5})
     return key, ab
 
 
 def _responses(rows):
     """rows: list dict {code: câu trả lời}; tiêu đề cột giống Google Form (mã + phần chữ)."""
     heads = {f"q{i:02d}": f"q{i:02d} - Ảnh này là thật hay AI?" for i in range(1, 21)}
-    heads.update({f"ab{i:02d}": f"ab{i:02d} - Ảnh nào trông thật hơn?" for i in range(1, 11)})
+    heads.update({f"ab{i:02d}": f"ab{i:02d} - Ảnh nào là ảnh chụp thật?" for i in range(1, 11)})
     df = pd.DataFrame([{heads[k]: v for k, v in r.items()} for r in rows])
     df.insert(0, "Dấu thời gian", "2026/11/09")
     return df
@@ -177,7 +223,44 @@ def test_analyze_known_counts():
     assert m["f1"] == pytest.approx(2 * (2 / 3) * (2 / 3) / (4 / 3))
     # A/B: 3 người chọn "Ảnh A"; A = catvton ở 5 câu trong 10 => 50%
     assert r["cat_rate"] == pytest.approx(0.5)
+    assert r["ab_rates"]["real"] == pytest.approx(0.5)
     assert r["ab_n"] == 30
+    assert r["ab_test"]["p_value"] == pytest.approx(1.0)
+
+
+def test_analyze_ab_real_vs_catvton():
+    key, ab = _keys()   # câu lẻ: A = catvton, B = thật; câu chẵn: A = thật, B = catvton
+    q = {f"q{i:02d}": "AI" for i in range(1, 21)}
+    always_real = {f"ab{i:02d}": ("Ảnh B" if i % 2 else "Ảnh A") for i in range(1, 11)}   # luôn chọn đúng ảnh thật
+    fooled = {f"ab{i:02d}": ("Ảnh A" if i % 2 else "Ảnh B") for i in range(1, 11)}         # luôn chọn ảnh CatVTON
+    r = an.analyze(_responses([{**q, **always_real}] * 3 + [{**q, **fooled}]), key, ab)
+    assert r["ab_n"] == 40
+    assert r["ab_rates"] == {"catvton": pytest.approx(0.25), "real": pytest.approx(0.75)}
+    t = r["ab_test"]
+    assert t["real_chosen"] == 30 and t["ci_low"] < 0.75 < t["ci_high"]
+    assert t["p_value"] == pytest.approx(an.binom_test_half(30, 40)) and t["p_value"] < 0.01
+    s = r["summary"]
+    assert set(s[s.section == "ab"].item) == {"catvton_chosen_rate", "real_chosen_rate", "real_chosen_ci95_low",
+                                              "real_chosen_ci95_high", "p_value_vs_50pct"}
+    assert (s[s.section == "ab_pair_catvton_chosen"].value == 0.25).all()
+
+
+def test_analyze_old_baseline_design_still_reads():
+    key, ab = _keys("baseline")
+    row = {**{f"q{i:02d}": "AI" for i in range(1, 21)}, **{f"ab{i:02d}": "Ảnh A" for i in range(1, 11)}}
+    r = an.analyze(_responses([row]), key, ab)
+    assert r["ab_rates"] == {"baseline": pytest.approx(0.5), "catvton": pytest.approx(0.5)}
+    assert r["ab_test"] is None
+
+
+@pytest.mark.parametrize("k,n,p", [(15, 30, 1.0), (20, 30, 0.098737), (25, 30, 0.000325), (7, 10, 0.34375)])
+def test_binomial_test_matches_reference(k, n, p):
+    assert an.binom_test_half(k, n) == pytest.approx(p, abs=1e-6)   # giá trị tham chiếu từ scipy.stats.binomtest
+
+
+def test_wilson_ci_reference():
+    lo, hi = an.wilson_ci(20, 30)
+    assert lo == pytest.approx(0.487801, abs=1e-6) and hi == pytest.approx(0.807695, abs=1e-6)
 
 
 def test_analyze_example_from_chapter2_slide():

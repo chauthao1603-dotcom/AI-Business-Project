@@ -4,7 +4,7 @@ Form phải dựng đúng quy ước dưới đây thì `eval/analyze_survey.py`
 
 ## Trước khi dựng
 
-1. Chạy `python -m eval.make_survey_set` (cần PV1 và PV2 đã giao ảnh). Lệnh tạo 20 ảnh `q01.png`…`q20.png` và 10 cặp `ab01_A.png`, `ab01_B.png`… trong `outputs/survey/`, 10 ảnh ghép `ab01.png`…`ab10.png` trong `outputs/survey/ab_sheets/`, cùng hai file đáp án `results/survey_key.csv` và `results/ab_key.csv`. Nếu bộ khảo sát đã tạo từ trước khi có ảnh ghép, chỉ chạy `python -m eval.make_survey_set --ab-sheets`: lệnh này chỉ ghép ảnh A/B đã có, không chọn lại ảnh và không đổi đáp án.
+1. Chạy `python -m eval.make_survey_set` (cần PV1 và PV2 đã giao ảnh). Lệnh tạo 20 ảnh `q01.png`…`q20.png` và 10 cặp `ab01_A.png`, `ab01_B.png`… trong `outputs/survey/`, 10 ảnh ghép `ab01.png`…`ab10.png` trong `outputs/survey/ab_sheets/`, cùng hai file đáp án `results/survey_key.csv` và `results/ab_key.csv`. Nếu bộ khảo sát đã tạo theo thiết kế cũ (A/B là baseline – CatVTON), chạy `python -m eval.make_survey_set --redo-ab`: lệnh này chỉ làm lại phần 2 theo thiết kế mới, giữ nguyên 20 ảnh và đáp án phần 1. Lệnh cho kết quả giống nhau mỗi lần chạy (seed cố định).
 2. Chỉ nhóm giữ file đáp án. Không đưa hai file này và không đưa tên file gốc cho người làm khảo sát.
 3. Không chạy lại lệnh sau khi đã dựng Form: bộ ảnh sẽ đổi và đáp án sẽ sai. Lệnh có chặn việc này (cần `--force` mới ghi đè).
 
@@ -21,15 +21,17 @@ Tạo 20 câu hỏi dạng **Trắc nghiệm** (một lựa chọn), theo thứ 
 
 Phần chữ sau mã được bỏ qua, nhưng **mã ở đầu tiêu đề phải đúng** (`q01`, không phải `Q1` hay `Câu 1`).
 
-## Phần 2: 10 câu so sánh A/B
+## Phần 2: 10 câu "ảnh nào là ảnh chụp thật?"
 
-Google Forms chỉ cho gắn **một** ảnh vào mỗi câu hỏi, nên mỗi câu A/B dùng một ảnh ghép sẵn: ảnh A bên trái, ảnh B bên phải, chữ "A" và "B" in phía trên từng ảnh. Vị trí trái/phải đúng với `left_method`/`right_method` trong `results/ab_key.csv`.
+Mỗi câu đặt cạnh nhau ảnh chụp thật của một người mẫu và ảnh CatVTON của chính người đó mặc chính chiếc áo đó (cặp paired). CatVTON chạy với REPAINT nên ngoài vùng mask hai ảnh gần như trùng nhau, người xem chỉ còn phần áo (đôi khi cả tay) để phân biệt. Người và áo ở phần này không xuất hiện ở phần 1, và ảnh thật nằm bên trái ở đúng 5 câu. Thiết kế cũ so baseline với CatVTON đã bỏ vì ảnh baseline dán áo quá dễ nhận ra.
+
+Google Forms chỉ cho gắn **một** ảnh vào mỗi câu hỏi, nên mỗi câu dùng một ảnh ghép sẵn: ảnh A bên trái, ảnh B bên phải, chữ "A" và "B" in phía trên từng ảnh. Vị trí trái/phải đúng với `left_method`/`right_method` (`real` hoặc `catvton`) trong `results/ab_key.csv`.
 
 Tạo 10 câu **Trắc nghiệm**, theo thứ tự `ab01` đến `ab10`. Mỗi câu:
 
 | Mục | Giá trị |
 |---|---|
-| Tiêu đề | `ab01 - Ảnh nào trông thật hơn?` |
+| Tiêu đề | `ab01 - Ảnh nào là ảnh chụp thật?` |
 | Hình ảnh | Chèn **một** ảnh `outputs/survey/ab_sheets/ab01.png` (đúng số thứ tự), để căn giữa và kéo rộng hết khung |
 | Lựa chọn | Đúng hai lựa chọn: `Ảnh A` và `Ảnh B` |
 | Bắt buộc | Bật |
@@ -51,4 +53,4 @@ Kiểm tra khi xong: tổng TP + FN + FP + TN phải bằng **số người tr�
 
 ## Cách đọc kết quả
 
-Lớp dương là "AI". Accuracy gần 50% nghĩa là người xem không phân biệt được ảnh AI với ảnh thật, tức ảnh AI thuyết phục. Recall thấp nghĩa là nhiều ảnh AI lọt qua mà không bị nhận ra. Mục `per_question` trong `survey_summary.csv` cho biết tỷ lệ trả lời đúng từng câu: nếu một ảnh thật bị gần như tất cả gọi là "AI" (hoặc ngược lại), hãy xem lại ảnh đó vì có thể nó có dấu hiệu lạ. Phần A/B chỉ báo tỷ lệ người chọn ảnh của CatVTON; trên 50% nghĩa là CatVTON trông thật hơn baseline.
+Lớp dương là "AI". Accuracy gần 50% nghĩa là người xem không phân biệt được ảnh AI với ảnh thật, tức ảnh AI thuyết phục. Recall thấp nghĩa là nhiều ảnh AI lọt qua mà không bị nhận ra. Mục `per_question` trong `survey_summary.csv` cho biết tỷ lệ trả lời đúng từng câu: nếu một ảnh thật bị gần như tất cả gọi là "AI" (hoặc ngược lại), hãy xem lại ảnh đó vì có thể nó có dấu hiệu lạ. Phần A/B báo tỷ lệ người xem chọn đúng ảnh chụp thật (`real_chosen_rate`), khoảng tin cậy 95% và p-value so với 50%. Tỷ lệ gần 50% (khoảng tin cậy chứa 50%) nghĩa là người xem không phân biệt được ảnh CatVTON với ảnh chụp thật của cùng người, cùng áo; tỷ lệ cao rõ rệt nghĩa là vẫn nhận ra được ảnh AI. Mỗi người trả lời cả 10 câu nên các lượt trả lời không hoàn toàn độc lập, khoảng tin cậy chỉ là ước lượng gần đúng. Mục `ab_pair_catvton_chosen` cho biết từng cặp bị nhầm nhiều hay ít.
