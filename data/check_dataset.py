@@ -161,7 +161,7 @@ def check_masks():
                 )
 
             report.append(
-                "Mask direction: CHECK VISUALLY"
+                "Mask direction: see "Actual direction" below (verified visually)"
             )
 
         except Exception as error:

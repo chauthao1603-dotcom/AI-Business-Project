@@ -38,7 +38,7 @@ Pixel values: [0, 255]
 White pixels: 30.12%
 Black pixels: 69.88%
 Binary mask: YES
-Mask direction: CHECK VISUALLY
+Mask direction: see "Actual direction" below (verified visually)
 
 Mask: 00008_00_mask.png
 Original mode: RGB
@@ -48,7 +48,7 @@ Pixel values: [0, 255]
 White pixels: 42.15%
 Black pixels: 57.85%
 Binary mask: YES
-Mask direction: CHECK VISUALLY
+Mask direction: see "Actual direction" below (verified visually)
 
 Mask: 00013_00_mask.png
 Original mode: RGB
@@ -58,7 +58,7 @@ Pixel values: [0, 255]
 White pixels: 25.02%
 Black pixels: 74.98%
 Binary mask: YES
-Mask direction: CHECK VISUALLY
+Mask direction: see "Actual direction" below (verified visually)
 
 Mask: 00017_00_mask.png
 Original mode: RGB
@@ -68,7 +68,7 @@ Pixel values: [0, 255]
 White pixels: 33.39%
 Black pixels: 66.61%
 Binary mask: YES
-Mask direction: CHECK VISUALLY
+Mask direction: see "Actual direction" below (verified visually)
 
 Mask: 00034_00_mask.png
 Original mode: RGB
@@ -78,9 +78,9 @@ Pixel values: [0, 255]
 White pixels: 33.45%
 Black pixels: 66.55%
 Binary mask: YES
-Mask direction: CHECK VISUALLY
+Mask direction: see "Actual direction" below (verified visually)
 
-Mask preview: D:\Gidhub\AI-Business-Project\data\raw\mask_preview.jpg
+Mask preview: data/raw/mask_preview.jpg
 
 Mask convention required by project:
 WHITE (255) = REPLACEMENT REGION

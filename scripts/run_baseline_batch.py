@@ -14,9 +14,23 @@ from src import config
 from src.baseline import run_baseline
 from src.utils import stem, load_dataset_mask
 
+IMG_EXTS = (".jpg", ".jpeg", ".png", ".webp")
+
+
+def find_image(folder: Path, name: str) -> Path:
+    """Trả đường dẫn ảnh cho tên có hoặc không có đuôi; không thấy thì trả folder/name để báo lỗi rõ ràng."""
+    direct = folder / name
+    if direct.is_file():
+        return direct
+    for ext in IMG_EXTS:
+        for cand in (folder / f"{stem(name)}{ext}", folder / f"{stem(name)}{ext.upper()}"):
+            if cand.is_file():
+                return cand
+    return direct
+
 
 def run_batch(pairs_file, person_dir, cloth_dir, out_dir,
-              mask_dir, error_file, mask_source="dataset"):
+              mask_dir, error_file, mask_source="dataset", limit=None):
 
     pairs_file = Path(pairs_file)
     person_dir = Path(person_dir)
@@ -46,6 +60,9 @@ def run_batch(pairs_file, person_dir, cloth_dir, out_dir,
 
         pairs = list(reader)
 
+    if limit:
+        pairs = pairs[:limit]
+
     print(f"Tổng số cặp cần xử lý: {len(pairs)}")
 
     for index, pair in enumerate(pairs, start=1):
@@ -55,7 +72,8 @@ def run_batch(pairs_file, person_dir, cloth_dir, out_dir,
         person_stem = stem(person_name)
         cloth_stem = stem(cloth_name)
 
-        output_name = f"{person_stem}__{cloth_stem}.png"
+        pid = (pair.get("id") or "").strip() or f"{person_stem}__{cloth_stem}"
+        output_name = f"{pid}.png"
         output_path = out_dir / output_name
 
         # Bỏ qua ảnh đã có
@@ -65,8 +83,9 @@ def run_batch(pairs_file, person_dir, cloth_dir, out_dir,
             continue
 
         try:
-            person_path = person_dir / person_name
-            cloth_path = cloth_dir / cloth_name
+            # eval_pairs.csv ghi tên không kèm đuôi (09204_00) -> tìm file theo stem, đuôi nào cũng được
+            person_path = find_image(person_dir, person_name)
+            cloth_path = find_image(cloth_dir, cloth_name)
 
             # Kiểm tra file đầu vào
             if not person_path.exists():
@@ -119,7 +138,7 @@ def run_batch(pairs_file, person_dir, cloth_dir, out_dir,
             failed += 1
 
             errors.append({
-                "id": f"{person_stem}__{cloth_stem}",
+                "id": pid,
                 "person": person_name,
                 "cloth": cloth_name,
                 "error": str(exc),
@@ -189,9 +208,17 @@ def main():
         default="dataset"
     )
 
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="chỉ chạy N dòng đầu (để thử)"
+    )
+
     args = parser.parse_args()
 
     run_batch(
+        limit=args.limit,
         pairs_file=args.pairs,
         person_dir=args.person_dir,
         cloth_dir=args.cloth_dir,
