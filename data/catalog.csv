@@ -1,4 +1,4 @@
-﻿product_id,name,category,color,price_vnd,image_file
+product_id,name,category,color,price_vnd,image_file
 SP001,Áo thun dài tay cổ tròn,Áo thun,Đen,189000,00006_00.jpg
 SP002,Áo thể thao dài tay phối sọc,Áo thể thao,Đỏ,249000,00008_00.jpg
 SP003,Áo thun ngắn tay cổ tròn,Áo thun,Hồng,179000,00013_00.jpg
@@ -19,3 +19,8 @@ SP017,Áo sát nách cổ chữ V,Áo sát nách,Xanh lá,179000,00096_00.jpg
 SP018,Áo thun dài tay in logo,Áo thun,Xám nhạt,199000,00110_00.jpg
 SP019,Áo thun dài tay cơ bản,Áo thun,Trắng,189000,00112_00.jpg
 SP020,Áo thun ngắn tay phối sọc vai,Áo thun,Đen,179000,00121_00.jpg
+SP021,Áo thun polo cổ bẻ,Áo thun,Đen,219000,00126_00.jpg
+SP022,Áo sơ mi oxford ngắn tay,Áo sơ mi,Xanh dương,259000,00127_00.jpg
+SP023,Áo len dệt kim mỏng cổ tròn,Áo len,Be,299000,00135_00.jpg
+SP024,Áo kiểu cổ tim thanh lịch,Áo kiểu,Trắng,269000,00145_00.jpg
+SP025,Áo thun thể thao năng động,Áo thể thao,Xám,199000,00151_00.jpg
