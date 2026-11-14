@@ -326,3 +326,110 @@ def test_cli_end_to_end(tmp_path):
     acc = s[(s.section == "classification") & (s.item == "accuracy")].value.iloc[0]
     assert acc == pytest.approx(1.0)
     assert (tmp_path / "out" / "figs" / "confusion_matrix.png").exists()
+
+
+# ---------------------------------------------------------------- 3.4: cấp người trả lời và thiên lệch vị trí
+@pytest.mark.parametrize("df,ref", [(1, 12.706205), (2, 4.302653), (9, 2.262157), (29, 2.045230), (100, 1.983972)])
+def test_t_ppf_matches_reference(df, ref):
+    assert an.t_ppf(0.975, df) == pytest.approx(ref, abs=1e-5)   # giá trị tham chiếu từ scipy.stats.t.ppf
+    assert an.t_ppf(0.025, df) == pytest.approx(-ref, abs=1e-5)
+
+
+def test_mean_ci_t_known_values():
+    st = an.mean_ci_t([0.2, 0.4, 0.6])
+    assert st["mean"] == pytest.approx(0.4) and st["sd"] == pytest.approx(0.2) and st["n"] == 3
+    half = 4.302653 * 0.2 / np.sqrt(3)
+    assert st["ci_low"] == pytest.approx(0.4 - half, abs=1e-5) and st["ci_high"] == pytest.approx(0.4 + half, abs=1e-5)
+    assert (st["min"], st["max"]) == (pytest.approx(0.2), pytest.approx(0.6))
+
+
+def test_mean_ci_t_ignores_nan_and_needs_two_values():
+    st = an.mean_ci_t([0.5, np.nan])
+    assert st["n"] == 1 and st["mean"] == 0.5 and np.isnan(st["ci_low"]) and np.isnan(st["sd"])
+
+
+def test_bootstrap_is_deterministic_and_brackets_the_mean():
+    v = np.linspace(0.2, 0.9, 30)
+    a, b = an.bootstrap_mean_ci(v), an.bootstrap_mean_ci(v)
+    assert a == b                                   # seed 42 cố định => tái lập được
+    assert a[0] < v.mean() < a[1]
+    assert an.bootstrap_mean_ci([0.5] * 10) == (pytest.approx(0.5), pytest.approx(0.5))
+    assert all(np.isnan(x) for x in an.bootstrap_mean_ci([0.5]))
+
+
+def test_per_respondent_part1_accuracy():
+    key, ab = _keys()
+    perfect = {f"q{i:02d}": ("Thật" if i % 2 else "AI") for i in range(1, 21)}
+    always_ai = {f"q{i:02d}": "AI" for i in range(1, 21)}
+    abs_ = {f"ab{i:02d}": "Ảnh A" for i in range(1, 11)}
+    r = an.analyze(_responses([{**perfect, **abs_}, {**always_ai, **abs_}, {**always_ai, **abs_}]), key, ab)
+    st = r["per_respondent"]["part1_accuracy"]
+    assert st["n"] == 3 and st["mean"] == pytest.approx(2 / 3)       # 1.0, 0.5, 0.5
+    assert st["sd"] == pytest.approx(np.std([1, 0.5, 0.5], ddof=1))
+    assert (st["min"], st["max"]) == (pytest.approx(0.5), pytest.approx(1.0))
+    assert r["part1_bias"]["ai_answer_rate"] == pytest.approx(50 / 60)   # 10 + 20 + 20 lượt chọn "AI"
+    assert r["part1_bias"]["real_image_correct_rate"] == pytest.approx(10 / 30)
+
+
+def test_per_respondent_ab_uses_each_person_as_one_unit():
+    key, ab = _keys()   # câu lẻ: ảnh thật bên phải (B); câu chẵn: ảnh thật bên trái (A)
+    q = {f"q{i:02d}": "AI" for i in range(1, 21)}
+    always_real = {f"ab{i:02d}": ("Ảnh B" if i % 2 else "Ảnh A") for i in range(1, 11)}
+    fooled = {f"ab{i:02d}": ("Ảnh A" if i % 2 else "Ảnh B") for i in range(1, 11)}
+    r = an.analyze(_responses([{**q, **always_real}] * 3 + [{**q, **fooled}]), key, ab)
+    st = r["per_respondent"]["ab_real_chosen"]
+    assert st["n"] == 4 and st["mean"] == pytest.approx(0.75)
+    assert st["sd"] == pytest.approx(0.5)                             # 1, 1, 1, 0
+    assert st["ci_low"] < 0.75 < st["ci_high"]
+    assert st["boot"][0] <= 0.75 <= st["boot"][1]
+
+
+def test_per_respondent_blank_answers_shrink_the_denominator():
+    key, ab = _keys()
+    row = {**{f"q{i:02d}": ("Thật" if i % 2 else "AI") for i in range(1, 21)},
+           **{f"ab{i:02d}": ("Ảnh B" if i % 2 else "Ảnh A") for i in range(1, 11)}}
+    row["q01"] = None
+    row["ab01"] = None
+    r = an.analyze(_responses([row]), key, ab)
+    assert r["per_respondent"]["part1_accuracy"]["mean"] == pytest.approx(1.0)    # 19/19, không phải 19/20
+    assert r["per_respondent"]["ab_real_chosen"]["mean"] == pytest.approx(1.0)    # 9/9
+
+
+def test_position_bias_always_right():
+    key, ab = _keys()
+    q = {f"q{i:02d}": "AI" for i in range(1, 21)}
+    always_b = {f"ab{i:02d}": "Ảnh B" for i in range(1, 11)}
+    r = an.analyze(_responses([{**q, **always_b}] * 4), key, ab)
+    pos = r["position"]
+    assert pos["right_rate"] == pytest.approx(1.0) and pos["right_chosen"] == 40
+    assert pos["real_right_pairs"] == 5 and pos["real_left_pairs"] == 5
+    assert pos["real_right_rate"] == pytest.approx(1.0) and pos["real_left_rate"] == pytest.approx(0.0)
+    assert pos["real_right_votes"] == pos["real_left_votes"] == 20
+    assert r["ab_test"]["rate"] == pytest.approx(0.5)     # thiết kế cân bằng 5/5 triệt tiêu thiên lệch trong số gộp
+    s = r["summary"]
+    items = set(s[s.section == "ab_position"].item)
+    assert {"right_chosen_rate", "real_left_correct_rate", "real_right_correct_rate"} <= items
+
+
+def test_position_bias_old_design_has_no_real_split():
+    key, ab = _keys("baseline")
+    row = {**{f"q{i:02d}": "AI" for i in range(1, 21)}, **{f"ab{i:02d}": "Ảnh B" for i in range(1, 11)}}
+    r = an.analyze(_responses([row]), key, ab)
+    assert r["position"]["right_rate"] == pytest.approx(1.0)
+    assert "real_left_rate" not in r["position"] and "ab_real_chosen" not in r["per_respondent"]
+
+
+def test_cli_writes_per_respondent_and_position_rows(tmp_path):
+    key, ab = _keys()
+    key.to_csv(tmp_path / "key.csv", index=False)
+    ab.to_csv(tmp_path / "ab.csv", index=False)
+    rows = [{**{f"q{i:02d}": ("Thật" if (i + j) % 2 else "AI") for i in range(1, 21)},
+             **{f"ab{i:02d}": ("Ảnh B" if (i + j) % 3 else "Ảnh A") for i in range(1, 11)}} for j in range(5)]
+    _responses(rows).to_csv(tmp_path / "resp.csv", index=False)
+    assert an.main(["--responses", str(tmp_path / "resp.csv"), "--survey-key", str(tmp_path / "key.csv"),
+                    "--ab-key", str(tmp_path / "ab.csv"), "--out", str(tmp_path / "out")]) == 0
+    s = pd.read_csv(tmp_path / "out" / "survey_summary.csv")
+    pr = s[s.section == "per_respondent"].set_index("item").value
+    assert pr["ab_real_chosen_ci95_low_t"] <= pr["ab_real_chosen_mean"] <= pr["ab_real_chosen_ci95_high_t"]
+    assert (s[s.section == "per_respondent"].n == 5).all()
+    assert "right_chosen_rate" in set(s[s.section == "ab_position"].item)
