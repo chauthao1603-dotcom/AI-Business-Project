@@ -44,6 +44,17 @@ def find_image(directory, name) -> Path:
         p = d / f"{name}{ext}"
         if p.is_file():
             return p
+    # Dự phòng: tìm trong repo local nếu trên Drive chưa kịp đồng bộ
+    for fallback in [config.REPO_ROOT / "data" / "processed" / "external" / "persons",
+                     config.REPO_ROOT / "data" / "processed" / "external" / "garments"]:
+        if fallback.is_dir():
+            direct_fb = fallback / str(name)
+            if direct_fb.suffix and direct_fb.is_file():
+                return direct_fb
+            for ext in IMG_EXTS:
+                pf = fallback / f"{name}{ext}"
+                if pf.is_file():
+                    return pf
     raise FileNotFoundError(f"Không thấy ảnh '{name}' trong {d}")
 
 

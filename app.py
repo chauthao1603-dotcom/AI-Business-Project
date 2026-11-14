@@ -187,10 +187,9 @@ def get_result(
 # HÀM TIỆN ÍCH ĐỌC DỮ LIỆU & MINH HỌA ÁO
 # ==============================================================================
 def load_catalog() -> pd.DataFrame:
-    if config.CATALOG.exists():
-        return pd.read_csv(config.CATALOG)
-    if config.CATALOG_SAMPLE.exists():
-        return pd.read_csv(config.CATALOG_SAMPLE)
+    for cat_path in [config.CATALOG, config.REPO_ROOT / "data" / "catalog.csv", config.CATALOG_SAMPLE]:
+        if cat_path.exists():
+            return pd.read_csv(cat_path)
     return pd.DataFrame(columns=["product_id", "name", "category", "color", "image_file"])
 
 
@@ -240,10 +239,11 @@ def make_placeholder_garment(color_name: str) -> Image.Image:
 
 
 def load_garment_image(row: pd.Series) -> Image.Image:
-    img_path = config.GARMENTS / str(row["image_file"])
-    if img_path.exists():
-        with Image.open(img_path) as im:
-            return im.convert("RGB").copy()
+    for folder in [config.GARMENTS, config.REPO_ROOT / "data" / "garments", config.RAW / "cloth"]:
+        img_path = folder / str(row["image_file"])
+        if img_path.exists():
+            with Image.open(img_path) as im:
+                return im.convert("RGB").copy()
     return make_placeholder_garment(str(row["color"]))
 
 
@@ -367,7 +367,7 @@ with tab_tryon:
                 if config.DEMO_PERSONS.exists()
                 else []
             )
-            p_sources = ["Tải ảnh từ máy tính"] + (["Chọn người mẫu có sẵn"] if demo_persons else [])
+            p_sources = ["Tải ảnh từ máy tính", "📸 Chụp từ Camera"] + (["Chọn người mẫu có sẵn"] if demo_persons else [])
             p_mode = st.radio("Nguồn ảnh người:", p_sources, horizontal=True, label_visibility="collapsed")
 
             if p_mode == "Tải ảnh từ máy tính":
@@ -379,14 +379,23 @@ with tab_tryon:
                         st.image(input_person_img, caption="Ảnh người đã tải lên", width=260)
                     except ValueError as err:
                         st.error(str(err))
+            elif p_mode == "📸 Chụp từ Camera":
+                cam_person = st.camera_input("Chụp ảnh chân dung của bạn (đứng thẳng nhìn vào camera)", key="cam_person")
+                if cam_person is not None:
+                    try:
+                        input_person_img = read_uploaded_image(cam_person, "ảnh chụp từ camera")
+                        input_person_name = None
+                        st.image(input_person_img, caption="Ảnh chân dung vừa chụp", width=260)
+                    except ValueError as err:
+                        st.error(str(err))
             else:
-                sel_p_path = st.selectbox("Chọn người mẫu:", demo_persons, format_func=lambda p: p.name)
+                sel_p_path = st.selectbox("Chọn người mẫu:", demo_persons, format_func=lambda p: f"Người mẫu {p.stem}")
                 try:
                     with Image.open(sel_p_path) as im:
                         input_person_img = im.convert("RGB").copy()
                     validate_input_image(input_person_img, "ảnh người")
                     input_person_name = sel_p_path.name
-                    st.image(input_person_img, caption=sel_p_path.name, width=260)
+                    st.image(input_person_img, caption=f"Người mẫu: {sel_p_path.stem}", width=260)
                 except Exception as err:
                     st.error(f"Lỗi đọc ảnh người mẫu: {err}")
 
@@ -518,19 +527,34 @@ with tab_result:
                 st.metric("⏱️ Thời gian xử lý", f"{st.session_state['elapsed']:.2f} giây")
 
         st.write("")
-        c1, c2, c3 = st.columns(3, gap="medium")
-        with c1:
-            with st.container(border=True):
-                st.markdown("##### 🧍 Ảnh gốc")
-                st.image(st.session_state["person_img"], use_container_width=True)
-        with c2:
-            with st.container(border=True):
-                st.markdown("##### 📐 Phương pháp Baseline")
-                st.image(st.session_state["baseline"], use_container_width=True)
-        with c3:
-            with st.container(border=True):
-                st.markdown("##### ✨ Kết quả AI (CatVTON)")
-                st.image(st.session_state["result"], use_container_width=True)
+        # Toggle bật/tắt chế độ đối chứng (Mặc định tắt để hiển thị 2 cột Before/After chuẩn thương mại)
+        show_baseline = st.toggle("🔬 Chế độ so sánh kỹ thuật (Hiện ảnh Baseline đối chứng)", value=False)
+
+        if show_baseline:
+            c1, c2, c3 = st.columns(3, gap="medium")
+            with c1:
+                with st.container(border=True):
+                    st.markdown("##### 🧍 Ảnh gốc")
+                    st.image(st.session_state["person_img"], use_container_width=True)
+            with c2:
+                with st.container(border=True):
+                    st.markdown("##### 📐 Phương pháp Baseline")
+                    st.image(st.session_state["baseline"], use_container_width=True)
+            with c3:
+                with st.container(border=True):
+                    st.markdown("##### ✨ Kết quả AI (CatVTON)")
+                    st.image(st.session_state["result"], use_container_width=True)
+        else:
+            # Giao diện Before/After to rõ, đẹp mắt cho khách hàng
+            c1, c2 = st.columns(2, gap="large")
+            with c1:
+                with st.container(border=True):
+                    st.markdown("##### 🧍 Ảnh người mẫu ban đầu")
+                    st.image(st.session_state["person_img"], use_container_width=True)
+            with c2:
+                with st.container(border=True):
+                    st.markdown("##### ✨ Kết quả mặc thử AI (CatVTON)")
+                    st.image(st.session_state["result"], use_container_width=True)
 
         bot_col1, bot_col2 = st.columns(2, gap="medium")
         with bot_col1:
