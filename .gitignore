@@ -29,6 +29,8 @@ outputs/*/*
 outputs/*.png
 outputs/*.jpg
 outputs/*.jpeg
+outputs/*.zip
+results/*.zip
 # Trọng số mô hình và repo CatVTON clone về Colab
 *.ckpt
 *.safetensors

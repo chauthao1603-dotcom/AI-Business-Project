@@ -4,7 +4,7 @@ Form phải dựng đúng quy ước dưới đây thì `eval/analyze_survey.py`
 
 ## Trước khi dựng
 
-1. Chạy `python -m eval.make_survey_set` (cần PV1 và PV2 đã giao ảnh). Lệnh tạo 20 ảnh `q01.png`…`q20.png` và 10 cặp `ab01_A.png`, `ab01_B.png`… trong `outputs/survey/`, cùng hai file đáp án `results/survey_key.csv` và `results/ab_key.csv`.
+1. Chạy `python -m eval.make_survey_set` (cần PV1 và PV2 đã giao ảnh). Lệnh tạo 20 ảnh `q01.png`…`q20.png` và 10 cặp `ab01_A.png`, `ab01_B.png`… trong `outputs/survey/`, 10 ảnh ghép `ab01.png`…`ab10.png` trong `outputs/survey/ab_sheets/`, cùng hai file đáp án `results/survey_key.csv` và `results/ab_key.csv`. Nếu bộ khảo sát đã tạo từ trước khi có ảnh ghép, chỉ chạy `python -m eval.make_survey_set --ab-sheets`: lệnh này chỉ ghép ảnh A/B đã có, không chọn lại ảnh và không đổi đáp án.
 2. Chỉ nhóm giữ file đáp án. Không đưa hai file này và không đưa tên file gốc cho người làm khảo sát.
 3. Không chạy lại lệnh sau khi đã dựng Form: bộ ảnh sẽ đổi và đáp án sẽ sai. Lệnh có chặn việc này (cần `--force` mới ghi đè).
 
@@ -23,14 +23,18 @@ Phần chữ sau mã được bỏ qua, nhưng **mã ở đầu tiêu đề ph�
 
 ## Phần 2: 10 câu so sánh A/B
 
+Google Forms chỉ cho gắn **một** ảnh vào mỗi câu hỏi, nên mỗi câu A/B dùng một ảnh ghép sẵn: ảnh A bên trái, ảnh B bên phải, chữ "A" và "B" in phía trên từng ảnh. Vị trí trái/phải đúng với `left_method`/`right_method` trong `results/ab_key.csv`.
+
 Tạo 10 câu **Trắc nghiệm**, theo thứ tự `ab01` đến `ab10`. Mỗi câu:
 
 | Mục | Giá trị |
 |---|---|
 | Tiêu đề | `ab01 - Ảnh nào trông thật hơn?` |
-| Hình ảnh | Chèn `ab01_A.png` và `ab01_B.png`, theo thứ tự A rồi B, ghi chú dưới mỗi ảnh là "Ảnh A", "Ảnh B" |
+| Hình ảnh | Chèn **một** ảnh `outputs/survey/ab_sheets/ab01.png` (đúng số thứ tự), để căn giữa và kéo rộng hết khung |
 | Lựa chọn | Đúng hai lựa chọn: `Ảnh A` và `Ảnh B` |
 | Bắt buộc | Bật |
+
+Không dùng `ab01_A.png` và `ab01_B.png` riêng lẻ trong Form. Hai file này chỉ là nguyên liệu để ghép. Trước khi gửi, mở **Xem trước** trên điện thoại một lần: ảnh ghép nằm ngang nên trên màn hình hẹp mỗi ảnh khá nhỏ, cần chắc chắn vẫn nhìn rõ được chi tiết áo.
 
 ## Cài đặt Form
 

@@ -86,6 +86,46 @@ def test_survey_refuses_overwrite_without_force(tmp_path):
     ms.build(a)  # có --force thì chạy được
 
 
+def test_ab_sheets_put_A_left_and_B_right(tmp_path):
+    a = _dataset(tmp_path)
+    res = ms.build(a)
+    out = tmp_path / "survey"
+    assert [p.name for p in res["sheets"]] == [f"ab{k:02d}.png" for k in range(1, 11)]
+    with Image.open(out / "ab03_A.png") as im_a, Image.open(out / "ab03_B.png") as im_b, \
+            Image.open(out / ms.AB_SHEET_DIR / "ab03.png") as sheet:
+        w, h = im_a.size
+        assert sheet.size == (2 * w + ms.SHEET_GAP, h + ms.SHEET_LABEL_H) and sheet.mode == "RGB"
+        top = ms.SHEET_LABEL_H
+        left = np.asarray(sheet.crop((0, top, w, top + h)))
+        right = np.asarray(sheet.crop((w + ms.SHEET_GAP, top, 2 * w + ms.SHEET_GAP, top + h)))
+        assert np.array_equal(left, np.asarray(im_a)) and np.array_equal(right, np.asarray(im_b))
+        label_band = np.asarray(sheet.crop((0, 0, sheet.width, top)))
+        assert label_band.min() < 128          # có chữ A, B trong dải nhãn
+        assert not sheet.info.get("exif")
+    # ảnh ghép nằm ở thư mục con nên không làm hỏng phép kiểm tra đồng nhất của 30 ảnh khảo sát
+    assert ms.check_uniform(out)["uniform"]
+
+
+def test_ab_sheets_flag_keeps_existing_answer_keys(tmp_path):
+    a = _dataset(tmp_path)
+    ms.build(a)
+    res_dir, out = tmp_path / "res", tmp_path / "survey"
+    before = {f: (res_dir / f).read_bytes() for f in ("survey_key.csv", "ab_key.csv")}
+    q_before = (out / "q01.png").read_bytes()
+    for p in (out / ms.AB_SHEET_DIR).glob("*.png"):
+        p.unlink()
+    # bộ đã có đáp án, không cần --force vẫn ghép được ảnh
+    assert ms.main(["--ab-sheets", "--out", str(out)]) == 0
+    assert len(list((out / ms.AB_SHEET_DIR).glob("ab*.png"))) == 10
+    assert {f: (res_dir / f).read_bytes() for f in before} == before
+    assert (out / "q01.png").read_bytes() == q_before
+
+
+def test_ab_sheets_without_survey_set_is_reported(tmp_path):
+    with pytest.raises(SystemExit):
+        ms.make_ab_sheets(tmp_path / "empty")
+
+
 def test_survey_needs_enough_images(tmp_path):
     a = _dataset(tmp_path, n=12)  # 12 người: đủ 10 ảnh AI nhưng không đủ 10 ảnh thật + 10 cặp A/B riêng
     with pytest.raises(SystemExit):

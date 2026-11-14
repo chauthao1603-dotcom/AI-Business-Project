@@ -12,14 +12,21 @@ Phần 1 (q01–q20): 10 ảnh thật + 10 ảnh CatVTON, 20 người khác nhau
     qua định dạng. Ảnh thật của VITON-HD vốn là JPEG còn ảnh CatVTON là PNG, nên bước nén JPEG chung
     là để xóa dấu hiệu đó.
 Phần 2 (ab01–ab10): 10 cặp baseline và CatVTON cùng id, vị trí A/B ngẫu nhiên.
+  Google Forms chỉ gắn được một ảnh vào mỗi câu hỏi, nên mỗi cặp còn được ghép thành một ảnh
+  outputs/survey/ab_sheets/abXX.png: ảnh A bên trái, ảnh B bên phải, nhãn "A" và "B" ở phía trên.
 
 Đầu ra:
     outputs/survey/q01.png … q20.png, ab01_A.png, ab01_B.png …   [Drive, không commit]
+    outputs/survey/ab_sheets/ab01.png … ab10.png                  [Drive, không commit]
     results/survey_key.csv   qid,label,source_id        label ∈ {real, ai}
     results/ab_key.csv       ab_id,id,left_method,right_method   (A = trái = left_method, B = phải)
 
 Chạy lại sẽ thay bộ ảnh; nếu Google Form đã dựng từ bộ cũ thì đáp án sẽ sai, nên lệnh từ chối ghi đè
 khi results/survey_key.csv đã có, trừ khi thêm --force.
+
+Bộ khảo sát đã dựng từ trước (chưa có ab_sheets/) thì chỉ cần ghép ảnh, không chọn lại ảnh và không đổi đáp án:
+
+    python -m eval.make_survey_set --ab-sheets
 """
 from __future__ import annotations
 
@@ -30,13 +37,16 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from eval.run_eval import IMG_EXTS, find_image, read_pairs
 from src import config, utils
 
 N_REAL = N_AI = 10
 N_AB = 10
+AB_SHEET_DIR = "ab_sheets"   # thư mục con của outputs/survey/ chứa ảnh ghép A|B
+SHEET_GAP = 40               # khoảng trắng giữa ảnh A và ảnh B (px)
+SHEET_LABEL_H = 120          # dải trắng phía trên để ghi nhãn A, B (px)
 
 
 def normalize(img: Image.Image, jpeg_quality: int) -> Image.Image:
@@ -55,6 +65,57 @@ def save_clean(img: Image.Image, path: Path) -> None:
     clean = Image.new("RGB", img.size)
     clean.paste(img)
     clean.save(path, "PNG")
+
+
+def _label_font(size: int):
+    """Font đậm cho nhãn A/B: Arial trên Windows, DejaVu trên Linux/Colab, không có thì dùng font mặc định."""
+    for name in ("arialbd.ttf", "arial.ttf", "DejaVuSans-Bold.ttf", "DejaVuSans.ttf"):
+        try:
+            return ImageFont.truetype(name, size)
+        except OSError:
+            continue
+    try:
+        return ImageFont.load_default(size=size)   # Pillow >= 10.1
+    except TypeError:
+        return ImageFont.load_default()
+
+
+def make_ab_sheets(out) -> list:
+    """Ghép abXX_A.png (trái) và abXX_B.png (phải) thành outputs/survey/ab_sheets/abXX.png.
+
+    Chỉ đọc ảnh A/B đã có, không chọn lại ảnh và không chạm vào file đáp án, nên chạy lại bao nhiêu lần
+    cũng không làm sai Google Form. Hai ảnh giữ nguyên kích thước và điểm ảnh, chỉ thêm dải nhãn và khoảng trắng.
+    """
+    out = Path(out)
+    a_paths = sorted(out.glob("ab[0-9][0-9]_A.png"))
+    if not a_paths:
+        raise SystemExit(f"Không thấy ảnh ab01_A.png … trong {out}. Chạy python -m eval.make_survey_set trước.")
+    dest_dir = out / AB_SHEET_DIR
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    font = _label_font(int(SHEET_LABEL_H * 0.7))
+    written = []
+    for a_path in a_paths:
+        ab_id = a_path.stem[:-2]                      # "ab01_A" -> "ab01"
+        b_path = out / f"{ab_id}_B.png"
+        if not b_path.exists():
+            raise SystemExit(f"Thiếu {b_path.name} đi cùng {a_path.name}.")
+        with Image.open(a_path) as a, Image.open(b_path) as b:
+            a, b = a.convert("RGB"), b.convert("RGB")
+        if a.size != b.size:
+            raise SystemExit(f"{a_path.name} và {b_path.name} khác kích thước: {a.size} và {b.size}.")
+        w, h = a.size
+        sheet = Image.new("RGB", (2 * w + SHEET_GAP, h + SHEET_LABEL_H), "white")
+        sheet.paste(a, (0, SHEET_LABEL_H))
+        sheet.paste(b, (w + SHEET_GAP, SHEET_LABEL_H))
+        draw = ImageDraw.Draw(sheet)
+        for text, cx in (("A", w / 2), ("B", w + SHEET_GAP + w / 2)):
+            left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
+            draw.text((cx - (left + right) / 2, SHEET_LABEL_H / 2 - (top + bottom) / 2), text,
+                      fill="black", font=font)
+        dest = dest_dir / f"{ab_id}.png"
+        save_clean(sheet, dest)
+        written.append(dest)
+    return written
 
 
 def choose(args) -> dict:
@@ -128,7 +189,8 @@ def build(args) -> dict:
             save_clean(normalize(Image.open(find_image(src_dir, row["id"])), args.jpeg_quality),
                        out / f"{row['ab_id']}_{side}.png")
     pd.DataFrame(sel["ab"]).to_csv(ab_path, index=False)
-    return {"key": pd.DataFrame(key_rows), "ab": pd.DataFrame(sel["ab"]), "sizes": sizes}
+    sheets = make_ab_sheets(out)
+    return {"key": pd.DataFrame(key_rows), "ab": pd.DataFrame(sel["ab"]), "sizes": sizes, "sheets": sheets}
 
 
 def check_uniform(out: Path) -> dict:
@@ -150,16 +212,24 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--results", default=str(config.RESULTS))
     ap.add_argument("--jpeg-quality", type=int, default=90, help="0 = không nén JPEG chung")
     ap.add_argument("--force", action="store_true", help="cho phép ghi đè bộ khảo sát đã có")
+    ap.add_argument("--ab-sheets", action="store_true",
+                    help="chỉ ghép ảnh A|B cho bộ đã có (không chọn lại ảnh, không đổi đáp án)")
     return ap
 
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+    if args.ab_sheets:
+        sheets = make_ab_sheets(args.out)
+        print(f"Đã ghép {len(sheets)} ảnh A|B vào {Path(args.out) / AB_SHEET_DIR} "
+              f"(A = trái, B = phải; đáp án giữ nguyên trong results/ab_key.csv)")
+        return 0
     res = build(args)
     chk = check_uniform(Path(args.out))
     key = res["key"]
     print(f"Đã tạo {len(key)} ảnh q01–q{len(key):02d} ({(key.label == 'real').sum()} thật, "
-          f"{(key.label == 'ai').sum()} AI) và {len(res['ab'])} cặp A/B trong {args.out}")
+          f"{(key.label == 'ai').sum()} AI) và {len(res['ab'])} cặp A/B trong {args.out} "
+          f"(ảnh ghép A|B cho Google Form: {Path(args.out) / AB_SHEET_DIR})")
     print(f"Định dạng ảnh: {sorted(chk['formats'])} -> {'ĐỒNG NHẤT' if chk['uniform'] else 'KHÔNG ĐỒNG NHẤT'}")
     for label, sz in res["sizes"].items():
         print(f"  dung lượng file trung bình, ảnh {label}: {sum(sz) / len(sz) / 1024:.0f} KB")
