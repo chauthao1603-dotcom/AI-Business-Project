@@ -39,6 +39,7 @@ AGNOSTIC_REGION_IS_WHITE = True
 
 # ---- Dữ liệu nặng: để trên Drive, nằm dưới ROOT, KHÔNG commit ----
 RAW = ROOT / "data" / "raw"
+DATA = REPO_ROOT / "data"
 TEST_DIR = RAW / "test"                       # VITON-HD: image/, cloth/, agnostic-mask/ ...
 TEST_IMAGE = TEST_DIR / "image"
 TEST_CLOTH = TEST_DIR / "cloth"

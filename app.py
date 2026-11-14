@@ -187,7 +187,7 @@ def get_result(
 # HÀM TIỆN ÍCH ĐỌC DỮ LIỆU & MINH HỌA ÁO
 # ==============================================================================
 def load_catalog() -> pd.DataFrame:
-    for cat_path in [config.CATALOG, config.DATA / "catalog.csv", config.CATALOG_SAMPLE]:
+    for cat_path in [config.CATALOG, config.REPO_ROOT / "data" / "catalog.csv", config.CATALOG_SAMPLE]:
         if cat_path.exists():
             return pd.read_csv(cat_path)
     return pd.DataFrame(columns=["product_id", "name", "category", "color", "image_file"])
@@ -239,7 +239,7 @@ def make_placeholder_garment(color_name: str) -> Image.Image:
 
 
 def load_garment_image(row: pd.Series) -> Image.Image:
-    for folder in [config.GARMENTS, config.DATA / "garments", config.DATA / "raw" / "cloth"]:
+    for folder in [config.GARMENTS, config.REPO_ROOT / "data" / "garments", config.RAW / "cloth"]:
         img_path = folder / str(row["image_file"])
         if img_path.exists():
             with Image.open(img_path) as im:
