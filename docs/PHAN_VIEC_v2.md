@@ -258,14 +258,14 @@ Mỗi việc có: **Cần trước** (phải có gì mới làm được), **Là
 - Xong khi qua hai phép thử: (a) cho `pred = gt` thì MSE = 0, SSIM = 1, LPIPS ≈ 0; (b) cho `pred` = ảnh đen toàn bộ thì cả ba chỉ số đều xấu rõ rệt. Cả hai đạt thì mới chạy với dữ liệu thật.
 
 **3.3 Bộ khảo sát: `eval/make_survey_set.py`**
-- Cần trước: `outputs/catvton/` và `outputs/baseline/` đủ (từ PV1, PV2).
-- Làm gì: seed 42. Chọn 10 ảnh thật (từ `data/raw/test/image`) và 10 ảnh CatVTON (lấy ngẫu nhiên, **không chọn lọc ảnh đẹp**), đưa về cùng định dạng và kích thước để người xem không đoán qua định dạng. Đổi tên `q01.png`…`q20.png`, xáo thứ tự, lưu đáp án vào `results/survey_key.csv` (`qid,label,source_id`, label ∈ {real, ai}). Phần so sánh: 10 cặp baseline và CatVTON cùng `id`, vị trí trái/phải ngẫu nhiên, đáp án lưu `results/ab_key.csv`.
+- Cần trước: `outputs/catvton/` đủ cả cặp unpaired và paired (từ PV1).
+- Làm gì: seed 42. Chọn 10 ảnh thật (từ `data/raw/test/image`) và 10 ảnh CatVTON (lấy ngẫu nhiên, **không chọn lọc ảnh đẹp**), đưa về cùng định dạng và kích thước để người xem không đoán qua định dạng. Đổi tên `q01.png`…`q20.png`, xáo thứ tự, lưu đáp án vào `results/survey_key.csv` (`qid,label,source_id`, label ∈ {real, ai}). Phần so sánh (đổi theo quyết định của nhóm ngày 14/11: so baseline với CatVTON quá dễ nhận ra): 10 cặp ảnh chụp thật và ảnh CatVTON paired của cùng người, cùng áo, không trùng người/áo với phần trên; ảnh thật bên trái ở đúng 5 câu; câu hỏi "Ảnh nào là ảnh chụp thật?"; đáp án lưu `results/ab_key.csv`.
 - Output: ảnh khảo sát trong `outputs/survey/` (để trên Drive), `results/survey_key.csv`, `results/ab_key.csv`. PV3 tự dựng Google Form từ đó.
 - Xong khi: một người ngoài nhóm xem thử không đoán được qua tên file hay định dạng.
 
 **3.4 Phân tích khảo sát: `eval/analyze_survey.py`**
 - Cần trước: file trả lời Form dạng CSV, `results/survey_key.csv`, `results/ab_key.csv`.
-- Làm gì: lớp dương = "AI". Mỗi lượt trả lời tính vào một trong bốn ô: TP (ảnh AI, chọn "AI"), FN (ảnh AI, chọn "Thật"), FP (ảnh thật, chọn "AI"), TN (ảnh thật, chọn "Thật"). Tính accuracy = (TP+TN)/tổng, precision = TP/(TP+FP), recall = TP/(TP+FN), F1 = 2·P·R/(P+R). Accuracy gần 50% nghĩa là người xem khó phân biệt, tức ảnh AI thuyết phục. Phần A/B: tính tỷ lệ chọn CatVTON.
+- Làm gì: lớp dương = "AI". Mỗi lượt trả lời tính vào một trong bốn ô: TP (ảnh AI, chọn "AI"), FN (ảnh AI, chọn "Thật"), FP (ảnh thật, chọn "AI"), TN (ảnh thật, chọn "Thật"). Tính accuracy = (TP+TN)/tổng, precision = TP/(TP+FP), recall = TP/(TP+FN), F1 = 2·P·R/(P+R). Accuracy gần 50% nghĩa là người xem khó phân biệt, tức ảnh AI thuyết phục. Phần A/B: tính tỷ lệ chọn đúng ảnh chụp thật, khoảng tin cậy 95% và p-value so với 50% (gần 50% = không phân biệt được).
 - Output: `results/survey_summary.csv`, `results/figs/confusion_matrix.png`.
 - Xong khi: tổng TP+FN+FP+TN = số người × 20.
 
