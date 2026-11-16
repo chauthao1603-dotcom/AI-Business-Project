@@ -1,0 +1,22 @@
+# LINK SẢN PHẨM DEMO & VIDEO
+
+## 1. Link Mã nguồn (GitHub Repository)
+https://github.com/chauthao1603-dotcom/AI-Business-Project.git
+(Nhánh main – toàn bộ code đã hoàn thiện 100%)
+
+## 2. Link Demo Web App (Chạy trên Google Colab + Cloudflare Tunnel)
+Hướng dẫn mở demo:
+1. Mở notebook: https://colab.research.google.com/github/chauthao1603-dotcom/AI-Business-Project/blob/main/notebooks/01_setup.ipynb
+2. Chọn Runtime → Change runtime type → T4 GPU
+3. Đặt cấu hình ở Ô 0: RUN_APP = True (các flag khác = False)
+4. Bấm Runtime → Run all
+5. Cuộn xuống Ô 11, đợi link xuất hiện: https://xxxx-xxxx-xxxx.trycloudflare.com
+6. Bấm vào link để vào giao diện Fitroom Studio Web App
+
+## 3. Link Video YouTube
+(Dán link YouTube vào đây sau khi quay và upload video demo)
+Link: _______________________________________________________________
+
+## 4. Google Drive nhóm (Dữ liệu & Ảnh kết quả)
+https://drive.google.com/drive/folders/1UvIWdpvKtOjhkWvJPSKMN177HYQIPibB
+(Folder: tryon_project – chứa ảnh sản phẩm, ảnh người mẫu, ảnh kết quả thử đồ)

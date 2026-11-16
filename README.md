@@ -1,8 +1,8 @@
-# Virtual Try-On – Thử quần áo ảo bằng AI
+# Virtual Try-On – Thử quần áo ảo bằng AI (CatVTON Diffusion)
 
-Đồ án cuối kỳ **ELC3008 – Trí tuệ nhân tạo trong kinh doanh** • Nhóm <số> • GVHD: <tên>
+Đồ án cuối kỳ **AI trong Kinh doanh (AI in Business)** • Khoa Thương mại Điện tử – ĐH Kinh tế, ĐH Đà Nẵng • GVHD: Thầy Trần Văn Lộc
 
-> **Demo:** <link demo – chạy qua Colab, xem docs/handoff.md mục 5> • **Video:** <link> • **Báo cáo:** <link>
+> **Demo:** [Mở Colab → Run All → Lấy link Cloudflare](https://colab.research.google.com/github/chauthao1603-dotcom/AI-Business-Project/blob/main/notebooks/01_setup.ipynb) • **Video:** *(cập nhật sau khi upload YouTube)* • **Báo cáo:** Xem `docs/handoff.md`
 
 ## 1. Bài toán
 Khách mua thời trang online khó hình dung món đồ khi mặc lên người nên do dự, dễ chọn sai kiểu hoặc không vừa ý, dẫn đến tỷ lệ chuyển đổi thấp và tỷ lệ hoàn trả cao. Hệ thống dùng mô hình diffusion **CatVTON** (thử đồ ảo) để sinh ảnh người mặc đúng chiếc áo đang xem, và so sánh với một baseline "dán áo lên người". Chất lượng ảnh sinh được đánh giá bằng MSE/RMSE/MAE, SSIM, LPIPS, FID/KID và khảo sát phân loại "ảnh thật hay AI". Phạm vi: áo phần thân trên, ảnh người đứng thẳng nhìn trực diện (đúng dữ liệu VITON-HD).
