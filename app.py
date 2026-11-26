@@ -743,43 +743,60 @@ with tab_result:
     res_data = st.session_state.get("latest_result")
 
     if res_data:
-        # Hàng 3 cột so sánh trực quan
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.markdown(
-                """
-                <div style="background: #FFFFFF; border: 1px solid #EAE6DF; padding: 10px; margin-bottom: 10px;">
-                    <span class="badge">GỐC</span>
-                    <strong style="margin-left: 5px; font-size: 0.85rem;">ẢNH NGƯỜI MẪU</strong>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            st.image(res_data["person"], use_container_width=True)
+        show_baseline = st.toggle("🔬 Chế độ so sánh kỹ thuật (Hiện ảnh Baseline đối chứng)", value=False)
 
-        with c2:
-            st.markdown(
-                """
-                <div style="background: #FFFFFF; border: 1px solid #EAE6DF; padding: 10px; margin-bottom: 10px;">
-                    <span class="badge" style="background: #F8F5EE; color: #9A7B4F;">BASELINE</span>
-                    <strong style="margin-left: 5px; font-size: 0.85rem;">PHƯƠNG PHÁP CƠ BẢN</strong>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            st.image(res_data["baseline"], use_container_width=True)
+        def _render_result_col(col, badge_html: str, title_html: str, border_color: str, img) -> None:
+            with col:
+                st.markdown(
+                    f"""
+                    <div style="background: #FFFFFF; border: 1px solid {border_color}; padding: 10px; margin-bottom: 10px;">
+                        {badge_html}
+                        {title_html}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                st.image(img, use_container_width=True)
 
-        with c3:
-            st.markdown(
-                """
-                <div style="background: #FFFFFF; border: 1px solid #C5A880; padding: 10px; margin-bottom: 10px;">
-                    <span class="badge badge-gold">AI TRY-ON</span>
-                    <strong style="margin-left: 5px; font-size: 0.85rem; color: #C5A880;">CATVTON DIFFUSION</strong>
-                </div>
-                """,
-                unsafe_allow_html=True,
+        if show_baseline:
+            c1, c2, c3 = st.columns(3)
+            _render_result_col(
+                c1,
+                '<span class="badge">GỐC</span>',
+                '<strong style="margin-left: 5px; font-size: 0.85rem;">ẢNH NGƯỜI MẪU</strong>',
+                "#EAE6DF",
+                res_data["person"],
             )
-            st.image(res_data["result"], use_container_width=True)
+            _render_result_col(
+                c2,
+                '<span class="badge" style="background: #F8F5EE; color: #9A7B4F;">BASELINE</span>',
+                '<strong style="margin-left: 5px; font-size: 0.85rem;">PHƯƠNG PHÁP CƠ BẢN</strong>',
+                "#EAE6DF",
+                res_data["baseline"],
+            )
+            _render_result_col(
+                c3,
+                '<span class="badge badge-gold">AI TRY-ON</span>',
+                '<strong style="margin-left: 5px; font-size: 0.85rem; color: #C5A880;">CATVTON DIFFUSION</strong>',
+                "#C5A880",
+                res_data["result"],
+            )
+        else:
+            c1, c3 = st.columns(2, gap="large")
+            _render_result_col(
+                c1,
+                '<span class="badge">GỐC</span>',
+                '<strong style="margin-left: 5px; font-size: 0.85rem;">ẢNH NGƯỜI MẪU</strong>',
+                "#EAE6DF",
+                res_data["person"],
+            )
+            _render_result_col(
+                c3,
+                '<span class="badge badge-gold">AI TRY-ON</span>',
+                '<strong style="margin-left: 5px; font-size: 0.85rem; color: #C5A880;">CATVTON DIFFUSION</strong>',
+                "#C5A880",
+                res_data["result"],
+            )
 
         # Nút tải ảnh chất lượng cao
         st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
