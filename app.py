@@ -350,21 +350,57 @@ def load_garment_from_row(row: pd.Series) -> Image.Image:
     return make_placeholder_garment(str(row.get("color", "")))
 
 
+def _normalized_stem(p: Path) -> str:
+    """Chuẩn hóa tên file (bỏ đuôi, bỏ hậu tố trùng của Drive như ' (1)', '_copy')."""
+    import re
+    s = p.stem.lower().strip()
+    return re.sub(r"(\s*\(\d+\)|\s*-\s*copy|_copy)+$", "", s).strip()
+
+
 def load_demo_persons() -> list[Path]:
-    """Tìm tất cả ảnh người mẫu demo từ Drive lẫn trong repo GitHub."""
+    """Tìm ảnh người mẫu demo từ repo và Drive, tự động loại bỏ các bản sao trùng lặp."""
+    import numpy as np
+
     candidate_dirs = [
-        config.DEMO_PERSONS,
         config.REPO_ROOT / "data" / "processed" / "demo" / "persons",
+        config.DEMO_PERSONS,
         config.REPO_ROOT / "data" / "demo" / "persons",
     ]
-    found = {}
+    unique_paths: list[Path] = []
+    seen_stems: set[str] = set()
+    seen_md5: set[str] = set()
+    seen_thumbs: list[np.ndarray] = []
+
     for d in candidate_dirs:
-        if d.exists():
-            for p in sorted(d.glob("*")):
-                if p.suffix.lower() in {".jpg", ".jpeg", ".png"}:
-                    if p.name not in found:
-                        found[p.name] = p
-    return list(found.values())
+        if not d.exists():
+            continue
+        for p in sorted(d.glob("*")):
+            if p.suffix.lower() not in {".jpg", ".jpeg", ".png"}:
+                continue
+            norm_stem = _normalized_stem(p)
+            if norm_stem in seen_stems:
+                continue
+            raw_bytes = p.read_bytes()
+            md5 = hashlib.md5(raw_bytes).hexdigest()
+            if md5 in seen_md5:
+                continue
+            try:
+                with Image.open(io.BytesIO(raw_bytes)) as im:
+                    thumb = np.asarray(
+                        ImageOps.exif_transpose(im).convert("RGB").resize((32, 32)),
+                        dtype=np.float32,
+                    )
+            except Exception:
+                continue
+            if any(float(np.mean(np.abs(thumb - prev))) < 8.0 for prev in seen_thumbs):
+                continue
+
+            seen_stems.add(norm_stem)
+            seen_md5.add(md5)
+            seen_thumbs.append(thumb)
+            unique_paths.append(p)
+
+    return sorted(unique_paths, key=lambda x: x.name.lower())
 
 
 MODEL_DESCRIPTIONS = {
