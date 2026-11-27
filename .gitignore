@@ -18,6 +18,7 @@ data/raw/*
 # và không đưa ảnh khuôn mặt thật của thành viên. Ảnh để trên Google Drive chung,
 # xem docs/handoff.md. File CSV/văn bản nhỏ (eval_pairs.csv, catalog.csv...) VẪN được commit.
 data/processed/**/*.png
+!data/processed/cache/*.png
 data/processed/**/*.jpg
 data/processed/**/*.jpeg
 data/processed/**/*.webp

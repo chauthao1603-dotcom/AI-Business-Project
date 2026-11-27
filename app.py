@@ -277,9 +277,8 @@ def get_result(
     validate_input_image(garment_img, "ảnh áo")
 
     cache_key = compute_cache_key(person_img, garment_img, person_name, garment_name)
-    config.CACHE.mkdir(parents=True, exist_ok=True)
-    disk_img_path = config.CACHE / f"{cache_key}.png"
-    disk_mask_path = config.CACHE / f"{cache_key}_mask.png"
+    repo_cache_dir = config.REPO_ROOT / "data" / "processed" / "cache"
+    cache_dirs = [config.CACHE] if config.CACHE == repo_cache_dir else [config.CACHE, repo_cache_dir]
 
     start_t = time.perf_counter()
     from_cache = False
@@ -289,21 +288,33 @@ def get_result(
         elapsed = time.perf_counter() - start_t
         return res_img, base_img, mask_img, elapsed, True, cache_key
 
-    if disk_img_path.exists() and disk_mask_path.exists():
-        with Image.open(disk_img_path) as r_im:
+    cached_pair = None
+    for cdir in cache_dirs:
+        p_img_cache = cdir / f"{cache_key}.png"
+        p_mask_cache = cdir / f"{cache_key}_mask.png"
+        if p_img_cache.exists() and p_mask_cache.exists():
+            cached_pair = (p_img_cache, p_mask_cache)
+            break
+
+    if cached_pair is not None:
+        with Image.open(cached_pair[0]) as r_im:
             res_img = standardize_image(r_im.copy())
-        with Image.open(disk_mask_path) as m_im:
+        with Image.open(cached_pair[1]) as m_im:
             mask_img = standardize_mask(m_im.copy())
         from_cache = True
     else:
         run_fn = load_cached_tryon_fn()
         res_img, mask_img = run_fn(person_img, garment_img, mask=None)
-        res_img.save(disk_img_path, format="PNG")
-        mask_img.save(disk_mask_path, format="PNG")
+        # Chỉ ghi xuống ổ đĩa khi chạy mô hình AI thật; không lưu đè kết quả Mock lên cache
+        if not config.use_mock():
+            config.CACHE.mkdir(parents=True, exist_ok=True)
+            res_img.save(config.CACHE / f"{cache_key}.png", format="PNG")
+            mask_img.save(config.CACHE / f"{cache_key}_mask.png", format="PNG")
 
     base_img = safe_run_baseline(person_img, garment_img, mask_img)
     elapsed = time.perf_counter() - start_t
-    st.session_state.setdefault("cache_map", {})[cache_key] = (res_img, base_img, mask_img, elapsed)
+    if from_cache or not config.use_mock():
+        st.session_state.setdefault("cache_map", {})[cache_key] = (res_img, base_img, mask_img, elapsed)
     return res_img, base_img, mask_img, elapsed, from_cache, cache_key
 
 
@@ -591,6 +602,11 @@ with tab_shop:
 # =====================================================================
 with tab_tryon:
     st.markdown('<div class="section-title"><span class="step-num">02</span> STUDIO CHỌN ẢNH THỬ ĐỒ</div>', unsafe_allow_html=True)
+    if config.use_mock():
+        st.info(
+            "☁️ **Chế độ Cloud Demo (không có GPU):** Các cặp **Mẫu có sẵn × Áo cửa hàng** đã lưu trong Cache sẽ hiển thị ảnh AI CatVTON thật; "
+            "ảnh tự tải/Camera chưa có trong Cache sẽ hiển thị bản mô phỏng nhanh. Để chạy CatVTON sinh ảnh mới trực tiếp, hãy mở qua Colab T4 GPU."
+        )
 
     col_person, col_garment = st.columns(2, gap="large")
 
@@ -847,7 +863,12 @@ with tab_result:
                 use_container_width=True,
             )
         with col_spd:
-            cache_tag = "⚡ Cache" if res_data.get("from_cache") else "🤖 AI GPU"
+            if res_data.get("from_cache"):
+                cache_tag = "⚡ Cache AI thật"
+            elif config.use_mock():
+                cache_tag = "🧪 Mô phỏng CPU"
+            else:
+                cache_tag = "🤖 AI GPU"
             st.markdown(
                 f"<div style='background:#FFFFFF;border:1px solid #EAE6DF;padding:0.6rem 1rem;text-align:center;font-weight:700;font-size:0.85rem;'>"
                 f"THỜI GIAN: <span style='color:#9A7B4F;'>{res_data['elapsed']:.2f}s</span> ({cache_tag})"
